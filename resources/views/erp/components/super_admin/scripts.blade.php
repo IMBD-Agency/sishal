@@ -1,13 +1,17 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
     let salesChartInstance = null;
-    let chartLabels = @json($sixDaysSalesChart['labels']);
-    let chartAmounts = @json($sixDaysSalesChart['amounts']);
-    let chartQuantities = @json($sixDaysSalesChart['quantities']);
+    let chartLabels = @json($sixDaysSalesChart['labels'] ?? []);
+    let chartAmounts = @json($sixDaysSalesChart['amounts'] ?? []);
+    let chartQuantities = @json($sixDaysSalesChart['quantities'] ?? []);
     let currentDatasetType = 'amount';
 
     document.addEventListener('DOMContentLoaded', function () {
-        initSixDaysChart();
+        if (chartLabels && chartLabels.length > 0) {
+            initSixDaysChart();
+        } else {
+            triggerAjaxFilter(true);
+        }
     });
 
     function initSixDaysChart() {
@@ -157,14 +161,16 @@
         return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num || 0);
     }
 
-    function triggerAjaxFilter() {
+    function triggerAjaxFilter(isInitial = false) {
         const branchId = document.getElementById('branchSelect').value;
         const range = document.getElementById('rangeSelect').value;
 
         const branchSelectText = document.getElementById('branchSelect').options[document.getElementById('branchSelect').selectedIndex].text;
         document.getElementById('branchFilterLabel').innerHTML = `<i class="fas fa-filter me-1"></i> ${branchSelectText}`;
 
-        toggleOverlays(true);
+        if (!isInitial) {
+            toggleOverlays(true);
+        }
 
         const dataUrl = `{{ route('erp.super_admin.dashboard.data') }}?branch_id=${branchId}&range=${range}`;
 
@@ -237,8 +243,17 @@
             chartAmounts = data.sixDaysSalesChart.amounts;
             chartQuantities = data.sixDaysSalesChart.quantities;
 
-            salesChartInstance.data.labels = chartLabels;
-            switchChartDataset(currentDatasetType);
+            const skeletonEl = document.getElementById('salesChartSkeleton');
+            const containerEl = document.getElementById('salesChartContainer');
+            if (skeletonEl) skeletonEl.style.display = 'none';
+            if (containerEl) containerEl.style.display = 'block';
+
+            if (!salesChartInstance) {
+                initSixDaysChart();
+            } else {
+                salesChartInstance.data.labels = chartLabels;
+                switchChartDataset(currentDatasetType);
+            }
         }
 
         // 3. Top Selling Products

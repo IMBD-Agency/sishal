@@ -16,14 +16,20 @@
             <thead>
                 <tr id="grossStatementHead">
                     <th>Financial Metric</th>
-                    @foreach($grossSalesStatement['months'] as $m)
-                        <th class="text-end">{{ $m }}</th>
-                    @endforeach
+                    @if(!empty($grossSalesStatement['months']))
+                        @foreach($grossSalesStatement['months'] as $m)
+                            <th class="text-end">{{ $m }}</th>
+                        @endforeach
+                    @else
+                        @for($i = 0; $i < 6; $i++)
+                            <th class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 45px;"></div></th>
+                        @endfor
+                    @endif
                     <th class="text-end">Year Total</th>
                 </tr>
             </thead>
             <tbody id="grossStatementBody">
-                @foreach($grossSalesStatement['rows'] as $key => $row)
+                @forelse($grossSalesStatement['rows'] ?? [] as $key => $row)
                 <tr class="{{ $key === 'net_profit' ? 'table-light fw-bold' : ($key === 'gross_profit' ? 'bg-light-subtle' : '') }}">
                     <td class="fw-bold {{ $key === 'net_profit' ? 'text-success' : ($key === 'gross_profit' ? 'text-primary' : ($key === 'operating_expenses' ? 'text-danger' : ($key === 'other_income' ? 'text-info' : 'text-dark'))) }}">
                         @if($key === 'operating_expenses')
@@ -74,7 +80,17 @@
                         @endif
                     </td>
                 </tr>
-                @endforeach
+                @empty
+                @for($i = 0; $i < 5; $i++)
+                <tr class="sa-skeleton-row">
+                    <td><div class="sa-skeleton sa-skeleton-text" style="width: 140px;"></div></td>
+                    @for($j = 0; $j < 6; $j++)
+                    <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 65px;"></div></td>
+                    @endfor
+                    <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 80px;"></div></td>
+                </tr>
+                @endfor
+                @endforelse
             </tbody>
         </table>
     </div>

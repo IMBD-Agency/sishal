@@ -13,7 +13,8 @@
             </div>
         </div>
 
-        <div style="position: relative; height: 310px; width: 100%;">
+        <div id="salesChartSkeleton" class="sa-skeleton sa-skeleton-chart" style="display: {{ empty($sixDaysSalesChart['labels']) ? 'block' : 'none' }};"></div>
+        <div id="salesChartContainer" style="position: relative; height: 310px; width: 100%; display: {{ empty($sixDaysSalesChart['labels']) ? 'none' : 'block' }};">
             <canvas id="salesSixDaysChart"></canvas>
         </div>
     </div>

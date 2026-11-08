@@ -32,7 +32,7 @@
                     </tr>
                 </thead>
                 <tbody id="todaySalesTableBody">
-                    @foreach($todaySalesBranchWise['branches'] as $bw)
+                    @forelse($todaySalesBranchWise['branches'] ?? [] as $bw)
                     <tr>
                         <td class="fw-bold text-dark">
                             <i class="fas fa-building text-primary me-2 opacity-75"></i>{{ $bw['branch_name'] }}
@@ -46,9 +46,20 @@
                         </td>
                         <td class="text-end fw-bold text-success">৳{{ number_format($bw['month_amount'], 2) }}</td>
                     </tr>
-                    @endforeach
+                    @empty
+                    @for($i = 0; $i < 4; $i++)
+                    <tr class="sa-skeleton-row">
+                        <td><div class="sa-skeleton sa-skeleton-text" style="width: 130px;"></div></td>
+                        <td class="text-center"><div class="sa-skeleton sa-skeleton-pill"></div></td>
+                        <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 85px;"></div></td>
+                        <td class="text-center"><div class="sa-skeleton sa-skeleton-pill"></div></td>
+                        <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 95px;"></div></td>
+                    </tr>
+                    @endfor
+                    @endforelse
                 </tbody>
                 <tfoot id="todaySalesTableFoot">
+                    @if(!empty($todaySalesBranchWise['total']) && !empty($todaySalesBranchWise['branches']))
                     <tr>
                         <td>TOTAL</td>
                         <td class="text-center">{{ number_format($todaySalesBranchWise['total']['today_qty']) }} pcs</td>
@@ -56,6 +67,15 @@
                         <td class="text-center">{{ number_format($todaySalesBranchWise['total']['month_qty']) }} pcs</td>
                         <td class="text-end text-success">৳{{ number_format($todaySalesBranchWise['total']['month_amount'], 2) }}</td>
                     </tr>
+                    @else
+                    <tr>
+                        <td>TOTAL</td>
+                        <td class="text-center"><div class="sa-skeleton sa-skeleton-pill"></div></td>
+                        <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 90px;"></div></td>
+                        <td class="text-center"><div class="sa-skeleton sa-skeleton-pill"></div></td>
+                        <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 100px;"></div></td>
+                    </tr>
+                    @endif
                 </tfoot>
             </table>
         </div>

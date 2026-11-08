@@ -3,7 +3,7 @@
 @section('title', 'Super Admin Dashboard')
 
 @push('css')
-    <link href="{{ asset('css/super_admin_dashboard.css') }}?v=1.0.2" rel="stylesheet">
+    <link href="{{ asset('css/super_admin_dashboard.css') }}?v=1.0.3" rel="stylesheet">
 @endpush
 
 @section('body')

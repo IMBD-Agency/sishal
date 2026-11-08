@@ -44,9 +44,17 @@ class SuperAdminDashboardController extends Controller
         $dateRange = $request->get('range', 'this_month');
 
         $branches = Branch::where('status', 'active')->select('id', 'name')->get();
-        $dashboardData = $this->fetchDashboardData($selectedBranchId, $dateRange, $branches);
-
         $siteTitle = GeneralSetting::value('site_title') ?? 'ERP SaaS';
+
+        // Provide lightweight placeholder structure for instant initial page delivery with skeleton loaders
+        $dashboardData = [
+            'todaySalesBranchWise' => ['branches' => [], 'total' => ['today_qty' => 0, 'today_amount' => 0, 'month_qty' => 0, 'month_amount' => 0]],
+            'sixDaysSalesChart' => ['labels' => [], 'amounts' => [], 'quantities' => []],
+            'topSellingProducts' => [],
+            'branchSalesStatement' => ['months' => [], 'rows' => [], 'totals' => ['months' => [], 'year_total' => 0, 'total_value' => 0, 'total_profit' => 0, 'profit_pct' => 0, 'markup_pct' => 0]],
+            'grossSalesStatement' => ['months' => [], 'rows' => []],
+            'expenseStatement' => ['months' => [], 'branches' => [], 'total' => ['months' => [], 'year_total' => 0]],
+        ];
 
         return view('erp.super_admin_dashboard', array_merge($dashboardData, [
             'branches' => $branches,

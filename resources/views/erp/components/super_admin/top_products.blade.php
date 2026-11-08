@@ -23,7 +23,7 @@
                 </tr>
             </thead>
             <tbody id="topSellingTableBody">
-                @foreach($topSellingProducts as $tp)
+                @forelse($topSellingProducts ?? [] as $tp)
                 <tr>
                     <td class="text-center">
                         <span class="rank-badge {{ $tp['rank'] == 1 ? 'rank-1' : ($tp['rank'] == 2 ? 'rank-2' : ($tp['rank'] == 3 ? 'rank-3' : 'rank-other')) }}">
@@ -39,7 +39,17 @@
                     <td class="text-center fw-semibold">{{ number_format($tp['sold_qty']) }} pcs</td>
                     <td class="text-end fw-bold text-dark">৳{{ number_format($tp['sales_amount']) }}</td>
                 </tr>
-                @endforeach
+                @empty
+                @for($i = 0; $i < 5; $i++)
+                <tr class="sa-skeleton-row">
+                    <td class="text-center"><div class="sa-skeleton sa-skeleton-pill" style="width: 28px; height: 28px; border-radius: 8px;"></div></td>
+                    <td><div class="sa-skeleton sa-skeleton-text" style="width: 160px;"></div></td>
+                    <td><div class="sa-skeleton sa-skeleton-pill" style="width: 80px;"></div></td>
+                    <td class="text-center"><div class="sa-skeleton sa-skeleton-text mx-auto" style="width: 60px;"></div></td>
+                    <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 90px;"></div></td>
+                </tr>
+                @endfor
+                @endforelse
             </tbody>
         </table>
     </div>

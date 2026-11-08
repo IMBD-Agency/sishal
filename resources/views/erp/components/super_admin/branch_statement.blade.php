@@ -26,9 +26,15 @@
             <thead>
                 <tr id="branchStatementHead">
                     <th>Branch</th>
-                    @foreach($branchSalesStatement['months'] as $m)
-                        <th class="text-end">{{ $m }}</th>
-                    @endforeach
+                    @if(!empty($branchSalesStatement['months']))
+                        @foreach($branchSalesStatement['months'] as $m)
+                            <th class="text-end">{{ $m }}</th>
+                        @endforeach
+                    @else
+                        @for($i = 0; $i < 6; $i++)
+                            <th class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 45px;"></div></th>
+                        @endfor
+                    @endif
                     <th class="text-end">Year Qty</th>
                     <th class="text-end">Total Value</th>
                     <th class="text-end">Total Profit</th>
@@ -37,7 +43,7 @@
                 </tr>
             </thead>
             <tbody id="branchStatementBody">
-                @foreach($branchSalesStatement['rows'] as $row)
+                @forelse($branchSalesStatement['rows'] ?? [] as $row)
                 <tr>
                     <td class="fw-bold text-dark">{{ $row['branch'] }}</td>
                     @foreach($row['months'] as $mVal)
@@ -57,9 +63,24 @@
                         </span>
                     </td>
                 </tr>
-                @endforeach
+                @empty
+                @for($i = 0; $i < 3; $i++)
+                <tr class="sa-skeleton-row">
+                    <td><div class="sa-skeleton sa-skeleton-text" style="width: 120px;"></div></td>
+                    @for($j = 0; $j < 6; $j++)
+                    <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 50px;"></div></td>
+                    @endfor
+                    <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 65px;"></div></td>
+                    <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 80px;"></div></td>
+                    <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 80px;"></div></td>
+                    <td class="text-end"><div class="sa-skeleton sa-skeleton-pill ms-auto"></div></td>
+                    <td class="text-end"><div class="sa-skeleton sa-skeleton-pill ms-auto"></div></td>
+                </tr>
+                @endfor
+                @endforelse
             </tbody>
             <tfoot id="branchStatementFoot">
+                @if(!empty($branchSalesStatement['totals']['months']) && !empty($branchSalesStatement['rows']))
                 <tr>
                     <td>TOTAL</td>
                     @foreach($branchSalesStatement['totals']['months'] as $tVal)
@@ -79,6 +100,19 @@
                         </span>
                     </td>
                 </tr>
+                @else
+                <tr>
+                    <td>TOTAL</td>
+                    @for($j = 0; $j < 6; $j++)
+                    <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 50px;"></div></td>
+                    @endfor
+                    <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 65px;"></div></td>
+                    <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 80px;"></div></td>
+                    <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 80px;"></div></td>
+                    <td class="text-end"><div class="sa-skeleton sa-skeleton-pill ms-auto"></div></td>
+                    <td class="text-end"><div class="sa-skeleton sa-skeleton-pill ms-auto"></div></td>
+                </tr>
+                @endif
             </tfoot>
         </table>
     </div>
