@@ -176,31 +176,39 @@ class DoubleEntryReportController extends Controller
 
         $openingBalance = $openingDebit - $openingCredit;
 
-        // Transactions - Ordered in DB
-        $entriesQuery = JournalEntry::with(['journal.branch', 'financialAccount'])
-            ->join('journals', 'journal_entries.journal_id', '=', 'journals.id')
-            ->select('journal_entries.*')
+        // Transactions Base Query
+        $baseQuery = JournalEntry::join('journals', 'journal_entries.journal_id', '=', 'journals.id')
             ->where('chart_of_account_id', $id)
             ->whereBetween('journals.entry_date', [$startDate, $endDate]);
 
         if ($branchId) {
-            $entriesQuery->where('journals.branch_id', $branchId);
+            $baseQuery->where('journals.branch_id', $branchId);
         }
 
-        $entries = $entriesQuery->orderBy('journals.entry_date', 'asc')->get();
+        // Total debits and credits for the entire selected period (for summary cards & period totals)
+        $totalDebits = (clone $baseQuery)->sum('debit');
+        $totalCredits = (clone $baseQuery)->sum('credit');
 
-        $totalDebits = $entries->sum('debit');
-        $totalCredits = $entries->sum('credit');
-
-        // Calculate running balance
-        $currentBalance = $openingBalance;
-        foreach ($entries as $entry) {
-            $currentBalance += ($entry->debit - $entry->credit);
-            $entry->running_balance = $currentBalance;
-        }
-
-        // Export to Excel / CSV
+        // Export to Excel / CSV (all records for the period)
         if ($request->export == 'excel') {
+            $exportEntries = JournalEntry::with(['journal.branch', 'financialAccount'])
+                ->join('journals', 'journal_entries.journal_id', '=', 'journals.id')
+                ->select('journal_entries.*')
+                ->where('chart_of_account_id', $id)
+                ->whereBetween('journals.entry_date', [$startDate, $endDate])
+                ->when($branchId, function($q) use ($branchId) {
+                    $q->where('journals.branch_id', $branchId);
+                })
+                ->orderBy('journals.entry_date', 'asc')
+                ->orderBy('journal_entries.id', 'asc')
+                ->get();
+
+            $currentBalance = $openingBalance;
+            foreach ($exportEntries as $entry) {
+                $currentBalance += ($entry->debit - $entry->credit);
+                $entry->running_balance = $currentBalance;
+            }
+
             $fileName = 'Account_Ledger_' . str_replace(' ', '_', $account->name) . '_' . now()->format('Y-m-d_H-i-s') . '.csv';
             $headers = [
                 "Content-type" => "text/csv",
@@ -210,13 +218,13 @@ class DoubleEntryReportController extends Controller
                 "Expires" => "0"
             ];
 
-            $callback = function() use ($entries, $openingBalance, $account, $startDate) {
+            $callback = function() use ($exportEntries, $openingBalance, $account, $startDate) {
                 $file = fopen('php://output', 'w');
                 fputcsv($file, ['Account Ledger: ' . $account->name . ' (' . $account->code . ')']);
                 fputcsv($file, ['Date', 'Voucher No', 'Branch', 'Particulars / Memo', 'Debit', 'Credit', 'Balance']);
                 fputcsv($file, [$startDate->format('Y-m-d'), 'OB', '', 'Opening Balance (Brought Forward)', '', '', number_format($openingBalance, 2)]);
 
-                foreach ($entries as $entry) {
+                foreach ($exportEntries as $entry) {
                     fputcsv($file, [
                         $entry->journal->entry_date->format('Y-m-d'),
                         $entry->journal->voucher_no,
@@ -233,10 +241,59 @@ class DoubleEntryReportController extends Controller
             return response()->stream($callback, 200, $headers);
         }
 
+        // Paginated entries for web view (default 50 entries per page)
+        $perPage = (int) $request->get('per_page', 50);
+        $entries = JournalEntry::with(['journal.branch', 'financialAccount'])
+            ->join('journals', 'journal_entries.journal_id', '=', 'journals.id')
+            ->select('journal_entries.*')
+            ->where('chart_of_account_id', $id)
+            ->whereBetween('journals.entry_date', [$startDate, $endDate])
+            ->when($branchId, function($q) use ($branchId) {
+                $q->where('journals.branch_id', $branchId);
+            })
+            ->orderBy('journals.entry_date', 'asc')
+            ->orderBy('journal_entries.id', 'asc')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        // Calculate balance brought forward for the current page
+        $pageStartingBalance = $openingBalance;
+        if ($entries->currentPage() > 1 && $entries->isNotEmpty()) {
+            $firstEntry = $entries->first();
+            $priorDebits = (clone $baseQuery)
+                ->where(function($q) use ($firstEntry) {
+                    $q->where('journals.entry_date', '<', $firstEntry->journal->entry_date)
+                      ->orWhere(function($sub) use ($firstEntry) {
+                          $sub->where('journals.entry_date', '=', $firstEntry->journal->entry_date)
+                              ->where('journal_entries.id', '<', $firstEntry->id);
+                      });
+                })
+                ->sum('debit');
+
+            $priorCredits = (clone $baseQuery)
+                ->where(function($q) use ($firstEntry) {
+                    $q->where('journals.entry_date', '<', $firstEntry->journal->entry_date)
+                      ->orWhere(function($sub) use ($firstEntry) {
+                          $sub->where('journals.entry_date', '=', $firstEntry->journal->entry_date)
+                              ->where('journal_entries.id', '<', $firstEntry->id);
+                      });
+                })
+                ->sum('credit');
+
+            $pageStartingBalance = $openingBalance + ($priorDebits - $priorCredits);
+        }
+
+        // Calculate running balance for entries on the current page
+        $currentBalance = $pageStartingBalance;
+        foreach ($entries as $entry) {
+            $currentBalance += ($entry->debit - $entry->credit);
+            $entry->running_balance = $currentBalance;
+        }
+
         $branches = $restrictedBranchId ? Branch::where('id', $restrictedBranchId)->get() : Branch::orderBy('name')->get();
 
         return view('erp.doubleEntry.accountLedger', compact(
-            'account', 'entries', 'openingBalance', 'startDate', 'endDate', 
+            'account', 'entries', 'openingBalance', 'pageStartingBalance', 'startDate', 'endDate', 
             'totalDebits', 'totalCredits', 'branches', 'branchId', 'restrictedBranchId'
         ));
     }

@@ -21,46 +21,50 @@
     <div class="main-content bg-light min-vh-100" id="mainContent">
         @include('erp.components.header')
         <!-- Header Section -->
-        <div class="container-fluid px-4 py-3 bg-white border-bottom">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-2">
-                            <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none">Dashboard</a></li>
-                            <li class="breadcrumb-item"><a href="{{ route('ledger.index') }}" class="text-decoration-none">Ledger Summary</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Account Ledger</li>
-                        </ol>
-                    </nav>
-                    <h2 class="fw-bold mb-0">{{ $account->name }}</h2>
-                    <div class="d-flex align-items-center gap-2 mt-1">
-                        <span class="text-muted">Account Code: {{ $account->code }} | Type: {{ $account->type->name ?? 'N/A' }}</span>
-                        @if($branchId)
-                            <span class="badge bg-primary"><i class="fas fa-store me-1"></i>{{ $branches->find($branchId)->name ?? 'Branch' }}</span>
-                        @else
-                            <span class="badge bg-secondary"><i class="fas fa-globe me-1"></i>All Branches</span>
-                        @endif
+        <div class="glass-header mb-0">
+            <div class="container-fluid px-0">
+                <div class="row align-items-center g-3">
+                    <div class="col-lg-6 col-md-6">
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb mb-1" style="font-size: 0.85rem;">
+                                <li class="breadcrumb-item"><a href="{{ route('erp.dashboard') }}" class="text-decoration-none text-muted">Dashboard</a></li>
+                                <li class="breadcrumb-item"><a href="{{ route('ledger.index') }}" class="text-decoration-none text-muted">Ledger Summary</a></li>
+                                <li class="breadcrumb-item active text-primary fw-600" aria-current="page">Account Ledger</li>
+                            </ol>
+                        </nav>
+                        <h4 class="fw-bold mb-0 text-dark">{{ $account->name }}</h4>
+                        <div class="d-flex align-items-center gap-2 mt-1 flex-wrap">
+                            <span class="text-muted small">Account Code: <b>{{ $account->code }}</b> | Type: <b>{{ $account->type->name ?? 'N/A' }}</b></span>
+                            @if($branchId)
+                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25"><i class="fas fa-store me-1"></i>{{ $branches->find($branchId)->name ?? 'Branch' }}</span>
+                            @else
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25"><i class="fas fa-globe me-1"></i>All Branches</span>
+                            @endif
+                        </div>
                     </div>
-                </div>
-                <div class="col-md-5 text-end d-flex justify-content-end align-items-center gap-2">
-                    @if(!$restrictedBranchId)
-                    <form method="GET" action="{{ route('ledger.account', $account->id) }}" class="d-inline-block" id="quickBranchForm">
-                        <input type="hidden" name="start_date" value="{{ request('start_date', $startDate->format('Y-m-d')) }}">
-                        <input type="hidden" name="end_date" value="{{ request('end_date', $endDate->format('Y-m-d')) }}">
-                        <select name="branch_id" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width: 170px;">
-                            <option value="">All Branches</option>
-                            @foreach($branches as $b)
-                                <option value="{{ $b->id }}" {{ ($branchId ?? '') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
-                            @endforeach
-                        </select>
-                    </form>
-                    @endif
-                    <div class="btn-group me-2">
-                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
-                            <i class="fas fa-filter me-2"></i>Filter
-                        </button>
-                        <button class="btn btn-primary" onclick="exportAccountLedger()">
-                            <i class="fas fa-download me-2"></i>Export
-                        </button>
+                    <div class="col-lg-6 col-md-6">
+                        <div class="d-flex flex-wrap justify-content-md-end align-items-center gap-2">
+                            @if(!$restrictedBranchId)
+                            <form method="GET" action="{{ route('ledger.account', $account->id) }}" class="m-0" id="quickBranchForm">
+                                <input type="hidden" name="start_date" value="{{ request('start_date', $startDate->format('Y-m-d')) }}">
+                                <input type="hidden" name="end_date" value="{{ request('end_date', $endDate->format('Y-m-d')) }}">
+                                <select name="branch_id" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width: 170px; border-radius: 10px; height: 38px; font-weight: 500;">
+                                    <option value="">All Branches</option>
+                                    @foreach($branches as $b)
+                                        <option value="{{ $b->id }}" {{ ($branchId ?? '') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
+                                    @endforeach
+                                </select>
+                            </form>
+                            @endif
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" class="btn btn-outline-primary fw-semibold px-3 d-flex align-items-center gap-1" style="border-radius: 10px; height: 38px;" data-bs-toggle="modal" data-bs-target="#filterModal">
+                                    <i class="fas fa-filter me-1"></i>Filter
+                                </button>
+                                <button type="button" class="btn btn-primary fw-semibold px-3 d-flex align-items-center gap-1" style="border-radius: 10px; height: 38px;" onclick="exportAccountLedger()">
+                                    <i class="fas fa-download me-1"></i>Export
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -175,17 +179,26 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- Opening Balance Row -->
+                                <!-- Opening / Brought Forward Balance Row -->
                                 <tr class="bg-light fw-bold">
                                     <td>{{ $startDate->format('M d, Y') }}</td>
-                                    <td colspan="2" class="text-muted italic">Opening Balance (Brought Forward)</td>
+                                    <td colspan="2" class="{{ ($entries->currentPage() ?? 1) > 1 ? 'text-primary' : 'text-muted' }} italic">
+                                        @if(($entries->currentPage() ?? 1) > 1)
+                                            <i class="fas fa-arrow-right me-1"></i> Balance Brought Forward (Page {{ $entries->currentPage() }})
+                                        @else
+                                            Opening Balance (Brought Forward)
+                                        @endif
+                                    </td>
                                     <td class="text-end">-</td>
                                     <td class="text-end">-</td>
                                     <td class="text-end">
-                                        @php $openingAbs = abs($openingBalance); @endphp
+                                        @php 
+                                            $effectiveOpening = (($entries->currentPage() ?? 1) > 1) ? ($pageStartingBalance ?? $openingBalance) : $openingBalance;
+                                            $openingAbs = abs($effectiveOpening); 
+                                        @endphp
                                         <span>৳{{ number_format($openingAbs, 2) }}</span>
-                                        <small class="badge {{ $openingBalance >= 0 ? 'bg-success' : 'bg-danger' }}">
-                                            {{ $openingBalance >= 0 ? 'Dr' : 'Cr' }}
+                                        <small class="badge {{ $effectiveOpening >= 0 ? 'bg-success' : 'bg-danger' }}">
+                                            {{ $effectiveOpening >= 0 ? 'Dr' : 'Cr' }}
                                         </small>
                                     </td>
                                     <td></td>
@@ -263,12 +276,12 @@
                                     <td class="text-end text-success">৳{{ number_format($totalCredits, 2) }}</td>
                                     <td class="text-end">
                                         @php 
-                                            $closingBalance = $entries->isEmpty() ? $openingBalance : $entries->last()->running_balance; 
-                                            $closingAbs = abs($closingBalance);
+                                            $periodClosingBalance = $openingBalance + ($totalDebits - $totalCredits); 
+                                            $closingAbs = abs($periodClosingBalance);
                                         @endphp
                                         <span>৳{{ number_format($closingAbs, 2) }}</span>
-                                        <span class="badge {{ $closingBalance >= 0 ? 'bg-success' : 'bg-danger' }}">
-                                            {{ $closingBalance >= 0 ? 'Dr' : 'Cr' }}
+                                        <span class="badge {{ $periodClosingBalance >= 0 ? 'bg-success' : 'bg-danger' }}">
+                                            {{ $periodClosingBalance >= 0 ? 'Dr' : 'Cr' }}
                                         </span>
                                     </td>
                                     <td></td>
@@ -277,6 +290,18 @@
                         </table>
                     </div>
                 </div>
+                @if($entries->hasPages())
+                <div class="card-footer bg-white border-top py-3">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+                        <span class="text-muted small">
+                            Showing <b>{{ $entries->firstItem() ?? 0 }}</b> to <b>{{ $entries->lastItem() ?? 0 }}</b> of <b>{{ $entries->total() }}</b> entries
+                        </span>
+                        <div>
+                            {{ $entries->links('vendor.pagination.bootstrap-5') }}
+                        </div>
+                    </div>
+                </div>
+                @endif
             </div>
         </div>
     </div>
