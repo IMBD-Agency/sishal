@@ -88,45 +88,14 @@ class BranchController extends Controller
     public function show($id)
     {
         if (auth()->user()->hasPermissionTo('view branches')) {
-            $branch = Branch::withoutGlobalScope('active')->with(['manager', 'employees.user', 'warehouse', 'branchProductStocks.product', 'pos.invoice'])
+            $branch = Branch::withoutGlobalScope('active')->with(['manager', 'employees.user', 'warehouse', 'pos.invoice'])
                 ->findOrFail($id);
             
             // Dynamic counts
             $employees_count = $branch->employees->count();
-            
-            // Automatically ensure BranchProductStock records exist for any product that has variation stock records in this branch
-            $variableProductIdsWithRecords = \App\Models\ProductVariationStock::where('branch_id', $id)
-                ->whereNull('warehouse_id')
-                ->with('variation.product')
-                ->get()
-                ->pluck('variation.product_id')
-                ->unique();
+            $products_count = $branch->branchProductStocks()->whereHas('product')->count();
 
-            foreach ($variableProductIdsWithRecords as $pid) {
-                if ($pid) {
-                    \App\Models\BranchProductStock::firstOrCreate([
-                        'branch_id' => $id,
-                        'product_id' => $pid,
-                    ], [
-                        'quantity' => 0,
-                        'updated_by' => auth()->id() ?? 1,
-                        'last_updated_at' => now(),
-                    ]);
-                }
-            }
-
-            // Get branch products with stock info (all products, not limited)
-            $branch_products = $branch->branchProductStocks()
-                ->whereHas('product')
-                ->with(['product.category', 'product.variations.stocks' => function ($q) use ($id) {
-                    $q->where('branch_id', $id)->whereNull('warehouse_id');
-                }])
-                ->orderBy('created_at', 'desc')
-                ->get();
-
-            $products_count = $branch_products->count();
-            
-            // Get recent sales (last 10)
+            // Get recent sales (last 5)
             $recent_sales = $branch->pos()
                 ->with(['customer', 'invoice'])
                 ->orderBy('created_at', 'desc')
@@ -138,6 +107,8 @@ class BranchController extends Controller
                 ->with(['user.roles'])->orderBy('created_at', 'desc')
                 ->limit(5)
                 ->get();
+            
+            $branch_products = collect();
             
             return view('erp.branches.show', compact(
                 'branch', 
