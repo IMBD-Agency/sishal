@@ -20,7 +20,7 @@
                         </ol>
                     </nav>
                     <h4 class="fw-bold mb-0 text-dark">Operational Hubs</h4>
-                    <p class="text-muted small mb-0"><span id="outletCount">Loading...</span> in our network</p>
+                    <p class="text-muted small mb-0"><span id="outletCount"><span class="sa-skeleton" style="width: 25px; height: 14px; vertical-align: middle;"></span></span> in our network</p>
                 </div>
                 <div
                     class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-column flex-md-row justify-content-md-end gap-2 align-items-md-center">
@@ -92,14 +92,54 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- Loaded via AJAX -->
+                                @for($i = 0; $i < 5; $i++)
+                                <tr class="branch-skeleton-row">
+                                    <td><div class="sa-skeleton" style="width: 35px; height: 16px;"></div></td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="sa-skeleton rounded-circle me-3" style="width: 40px; height: 40px;"></div>
+                                            <div>
+                                                <div class="sa-skeleton mb-1" style="width: 140px; height: 16px;"></div>
+                                                <div class="sa-skeleton" style="width: 90px; height: 12px;"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="sa-skeleton mb-1" style="width: 160px; height: 14px;"></div>
+                                        <div class="sa-skeleton" style="width: 110px; height: 12px;"></div>
+                                    </td>
+                                    <td class="text-center"><div class="sa-skeleton rounded-pill mx-auto" style="width: 80px; height: 22px;"></div></td>
+                                    <td class="text-center"><div class="sa-skeleton rounded-pill mx-auto" style="width: 70px; height: 22px;"></div></td>
+                                    <td class="text-end">
+                                        <div class="d-flex justify-content-end gap-1">
+                                            <div class="sa-skeleton rounded-3" style="width: 32px; height: 32px;"></div>
+                                            <div class="sa-skeleton rounded-3" style="width: 32px; height: 32px;"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                @endfor
                             </tbody>
                         </table>
                     </div>
 
                     <!-- Mobile List -->
                     <div class="d-md-none" id="branchesListMobile">
-                        <!-- Loaded via AJAX -->
+                        @for($i = 0; $i < 4; $i++)
+                        <div class="p-3 border-bottom bg-white branch-skeleton-card">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="sa-skeleton" style="width: 130px; height: 18px;"></div>
+                                <div class="sa-skeleton rounded-pill" style="width: 60px; height: 20px;"></div>
+                            </div>
+                            <div class="mb-2">
+                                <div class="sa-skeleton mb-1" style="width: 180px; height: 13px;"></div>
+                                <div class="sa-skeleton" style="width: 120px; height: 13px;"></div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <div class="sa-skeleton rounded-3 flex-grow-1" style="height: 32px;"></div>
+                                <div class="sa-skeleton rounded-3" style="width: 36px; height: 32px;"></div>
+                            </div>
+                        </div>
+                        @endfor
                     </div>
                 </div>
                 <div class="card-footer bg-white py-3 border-top">
@@ -208,6 +248,64 @@
                     fetchBranches();
                 });
 
+                function renderSkeletonLoading() {
+                    const tbody = document.querySelector('#branchesTable tbody');
+                    if (tbody) {
+                        let html = '';
+                        for (let i = 0; i < 5; i++) {
+                            html += `
+                            <tr class="branch-skeleton-row">
+                                <td><div class="sa-skeleton" style="width: 35px; height: 16px;"></div></td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="sa-skeleton rounded-circle me-3" style="width: 40px; height: 40px;"></div>
+                                        <div>
+                                            <div class="sa-skeleton mb-1" style="width: 140px; height: 16px;"></div>
+                                            <div class="sa-skeleton" style="width: 90px; height: 12px;"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="sa-skeleton mb-1" style="width: 160px; height: 14px;"></div>
+                                    <div class="sa-skeleton" style="width: 110px; height: 12px;"></div>
+                                </td>
+                                <td class="text-center"><div class="sa-skeleton rounded-pill mx-auto" style="width: 80px; height: 22px;"></div></td>
+                                <td class="text-center"><div class="sa-skeleton rounded-pill mx-auto" style="width: 70px; height: 22px;"></div></td>
+                                <td class="text-end">
+                                    <div class="d-flex justify-content-end gap-1">
+                                        <div class="sa-skeleton rounded-3" style="width: 32px; height: 32px;"></div>
+                                        <div class="sa-skeleton rounded-3" style="width: 32px; height: 32px;"></div>
+                                    </div>
+                                </td>
+                            </tr>`;
+                        }
+                        tbody.innerHTML = html;
+                    }
+
+                    const mobileContainer = document.getElementById('branchesListMobile');
+                    if (mobileContainer) {
+                        let mobileSkeleton = '';
+                        for (let i = 0; i < 4; i++) {
+                            mobileSkeleton += `
+                            <div class="p-3 border-bottom bg-white branch-skeleton-card">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div class="sa-skeleton" style="width: 130px; height: 18px;"></div>
+                                    <div class="sa-skeleton rounded-pill" style="width: 60px; height: 20px;"></div>
+                                </div>
+                                <div class="mb-2">
+                                    <div class="sa-skeleton mb-1" style="width: 180px; height: 13px;"></div>
+                                    <div class="sa-skeleton" style="width: 120px; height: 13px;"></div>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <div class="sa-skeleton rounded-3 flex-grow-1" style="height: 32px;"></div>
+                                    <div class="sa-skeleton rounded-3" style="width: 36px; height: 32px;"></div>
+                                </div>
+                            </div>`;
+                        }
+                        mobileContainer.innerHTML = mobileSkeleton;
+                    }
+                }
+
                 function fetchBranches(page = 1) {
                     const formData = new FormData(document.getElementById('filterForm'));
                     const params = new URLSearchParams();
@@ -217,12 +315,20 @@
                     }
                     params.append('page', page);
 
-                    // UI Feedback
-                    const tbody = document.querySelector('#branchesTable tbody');
-                    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></td></tr>';
+                    renderSkeletonLoading();
 
-                    fetch(`{{ url('/erp/branches/fetch') }}?${params.toString()}`)
-                        .then(response => response.json())
+                    fetch(`{{ url('/erp/branches/fetch') }}?${params.toString()}`, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
                         .then(data => {
                             renderDesktopTable(data);
                             renderMobileList(data);
@@ -231,7 +337,30 @@
                         })
                         .catch(error => {
                             console.error('Error:', error);
-                            if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>Sync error. Please refresh.</td></tr>';
+                            const tbody = document.querySelector('#branchesTable tbody');
+                            if (tbody) {
+                                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-5">
+                                    <i class="fas fa-exclamation-triangle fa-2x mb-2 text-warning d-block"></i>
+                                    <span class="fw-semibold">Unable to load branches.</span>
+                                    <div class="mt-2">
+                                        <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="fetchBranches(${page})">
+                                            <i class="fas fa-redo me-1"></i>Try Again
+                                        </button>
+                                    </div>
+                                </td></tr>`;
+                            }
+                            const mobileContainer = document.getElementById('branchesListMobile');
+                            if (mobileContainer) {
+                                mobileContainer.innerHTML = `<div class="p-4 text-center text-danger">
+                                    <i class="fas fa-exclamation-triangle mb-2 text-warning d-block"></i>
+                                    <span>Unable to load branches.</span>
+                                    <div class="mt-2">
+                                        <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="fetchBranches(${page})">
+                                            <i class="fas fa-redo me-1"></i>Try Again
+                                        </button>
+                                    </div>
+                                </div>`;
+                            }
                         });
                 }
 

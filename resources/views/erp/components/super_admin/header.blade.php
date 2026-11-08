@@ -30,6 +30,13 @@
                             <option value="this_year" {{ $dateRange === 'this_year' ? 'selected' : '' }}>This Year</option>
                         </select>
                     </div>
+                    <div>
+                        <label class="form-label small text-muted mb-1 fw-bold d-block">&nbsp;</label>
+                        <button type="button" class="btn btn-outline-secondary sa-filter-select px-3 d-flex align-items-center gap-2" onclick="triggerAjaxFilter(false, true)" title="Refresh Live Data">
+                            <i class="fas fa-sync-alt" id="refreshIcon"></i>
+                            <span>Refresh</span>
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>

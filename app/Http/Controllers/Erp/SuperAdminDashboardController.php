@@ -71,6 +71,11 @@ class SuperAdminDashboardController extends Controller
         $selectedBranchId = $request->get('branch_id', 'all');
         $dateRange = $request->get('range', 'this_month');
 
+        if ($request->boolean('refresh')) {
+            $cacheKey = "super_admin_dash_" . self::CACHE_VERSION . "_{$selectedBranchId}_{$dateRange}";
+            Cache::forget($cacheKey);
+        }
+
         $branches = Branch::where('status', 'active')->select('id', 'name')->get();
         $dashboardData = $this->fetchDashboardData($selectedBranchId, $dateRange, $branches);
 
@@ -87,7 +92,7 @@ class SuperAdminDashboardController extends Controller
     {
         $cacheKey = "super_admin_dash_" . self::CACHE_VERSION . "_{$selectedBranchId}_{$dateRange}";
 
-        return Cache::remember($cacheKey, 180, function () use ($selectedBranchId, $dateRange, $branches) {
+        return Cache::remember($cacheKey, 1800, function () use ($selectedBranchId, $dateRange, $branches) {
             $monthsWindow = $this->getMonthsArrayForRange($dateRange);
 
             return [

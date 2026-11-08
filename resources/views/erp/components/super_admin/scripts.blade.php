@@ -161,18 +161,29 @@
         return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num || 0);
     }
 
-    function triggerAjaxFilter(isInitial = false) {
+    function triggerAjaxFilter(isInitial = false, isRefresh = false) {
         const branchId = document.getElementById('branchSelect').value;
         const range = document.getElementById('rangeSelect').value;
 
         const branchSelectText = document.getElementById('branchSelect').options[document.getElementById('branchSelect').selectedIndex].text;
-        document.getElementById('branchFilterLabel').innerHTML = `<i class="fas fa-filter me-1"></i> ${branchSelectText}`;
+        const branchFilterEl = document.getElementById('branchFilterLabel');
+        if (branchFilterEl) {
+            branchFilterEl.innerHTML = `<i class="fas fa-filter me-1"></i> ${branchSelectText}`;
+        }
+
+        const refreshIcon = document.getElementById('refreshIcon');
+        if (isRefresh && refreshIcon) {
+            refreshIcon.classList.add('fa-spin');
+        }
 
         if (!isInitial) {
             toggleOverlays(true);
         }
 
-        const dataUrl = `{{ route('erp.super_admin.dashboard.data') }}?branch_id=${branchId}&range=${range}`;
+        let dataUrl = `{{ route('erp.super_admin.dashboard.data') }}?branch_id=${branchId}&range=${range}`;
+        if (isRefresh) {
+            dataUrl += `&refresh=1`;
+        }
 
         fetch(dataUrl, {
             headers: {
@@ -191,6 +202,9 @@
         })
         .finally(() => {
             toggleOverlays(false);
+            if (refreshIcon) {
+                refreshIcon.classList.remove('fa-spin');
+            }
         });
     }
 
