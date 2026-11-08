@@ -605,19 +605,30 @@
                 <td class="summary-label bold" style="font-size: 10pt;">FINAL NET PAYABLE</td>
                 <td class="summary-value bold" style="font-size: 12pt;"><span class="currency-symbol">৳</span>{{ number_format($pos->invoice->total_amount ?? $pos->total_amount, 2) }}</td>
             </tr>
-            <tr style="border-top: 1px solid #eee;">
-                <td class="summary-label" style="padding-top: 2mm;">Cash Received</td>
-                <td class="summary-value" style="padding-top: 2mm;"><span class="currency-symbol">৳</span>{{ number_format($pos->invoice->paid_amount ?? 0, 2) }}</td>
-            </tr>
             @php
-                $paid = $pos->invoice->paid_amount ?? 0;
-                $total = $pos->invoice->total_amount ?? $pos->total_amount;
+                $paid = (float)($pos->invoice->paid_amount ?? 0);
+                $total = (float)($pos->invoice->total_amount ?? $pos->total_amount);
+                $tendered = (float)($pos->tendered_amount ?? 0);
+                $change = (float)($pos->change_amount ?? 0);
+
+                if ($change <= 0 && $tendered > $total) {
+                    $change = $tendered - $total;
+                }
+                if ($change <= 0 && $paid > $total) {
+                    $change = $paid - $total;
+                    $tendered = $paid;
+                }
                 $diff = $paid - $total;
+                $displayReceived = $change > 0 ? ($tendered > 0 ? $tendered : $paid) : $paid;
             @endphp
-            @if($diff > 0)
+            <tr style="border-top: 1px solid #eee;">
+                <td class="summary-label" style="padding-top: 2mm;">{{ $change > 0 ? 'Cash Tendered' : 'Cash Received' }}</td>
+                <td class="summary-value" style="padding-top: 2mm;"><span class="currency-symbol">৳</span>{{ number_format($displayReceived, 2) }}</td>
+            </tr>
+            @if($change > 0)
             <tr>
                 <td class="summary-label">Change Return</td>
-                <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($diff, 2) }}</td>
+                <td class="summary-value"><span class="currency-symbol">৳</span>{{ number_format($change, 2) }}</td>
             </tr>
             @elseif($diff < 0)
             <tr>

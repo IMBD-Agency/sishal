@@ -135,10 +135,17 @@ class PosController extends Controller
             if ($pos->sale_date > $serverToday) {
                 $pos->sale_date = $serverToday;
             }
+            $rawTendered = floatval($request->paid_amount ?? 0);
+            $totalPayable = floatval($request->total_amount ?? 0);
+            $actualPaidAmount = min($rawTendered, $totalPayable);
+            $changeGiven = max(0, $rawTendered - $totalPayable);
+
             $pos->sub_total = $request->sub_total;
             $pos->discount = $request->discount ?? 0;
             $pos->delivery = $request->delivery ?? 0;
             $pos->total_amount = $request->total_amount;
+            $pos->tendered_amount = $rawTendered;
+            $pos->change_amount = $changeGiven;
             $pos->estimated_delivery_date = $request->estimated_delivery_date;
             $pos->estimated_delivery_time = $request->estimated_delivery_time;
             $pos->status = 'pending'; // or 'pending' if you want manual approval
@@ -340,8 +347,8 @@ class PosController extends Controller
             }
 
 
-            // Save payment if paid_amount > 0
-            if ($request->paid_amount > 0) {
+            // Save payment if actualPaidAmount > 0 (Tendered money capped to total sale, excess is change returned)
+            if ($actualPaidAmount > 0) {
                 $accountId = $request->account_id;
                 $finAcc = null;
                 if ($accountId) {
@@ -352,7 +359,7 @@ class PosController extends Controller
                 }
 
                 $deliveryCharge = floatval($pos->delivery ?? 0);
-                $accountPaidAmount = max(0, $request->paid_amount - $deliveryCharge);
+                $accountPaidAmount = max(0, $actualPaidAmount - $deliveryCharge);
 
                 if ($finAcc && $accountPaidAmount > 0) {
                     $finAcc->balance += $accountPaidAmount;
@@ -369,12 +376,14 @@ class PosController extends Controller
                         'account_id' => $finAcc ? $finAcc->id : $request->account_id,
                         'payment_method' => $request->payment_method ?? 'cash',
                         'reference' => null,
-                        'note' => $request->notes,
+                        'note' => $changeGiven > 0 
+                            ? trim(($request->notes ?? '') . " [Tendered: ৳" . number_format($rawTendered, 2) . ", Change: ৳" . number_format($changeGiven, 2) . "]")
+                            : $request->notes,
                         'customer_id' => $pos->customer_id,
                     ]);
                 }
                 // Update invoice paid/due/status for upfront payment
-                $invoice->paid_amount = ($invoice->paid_amount ?? 0) + $request->paid_amount;
+                $invoice->paid_amount = ($invoice->paid_amount ?? 0) + $actualPaidAmount;
                 $invoice->due_amount = max(0, ($invoice->total_amount ?? 0) - $invoice->paid_amount);
                 if ($invoice->paid_amount >= ($invoice->total_amount ?? 0)) {
                     $invoice->status = 'paid';
@@ -399,7 +408,7 @@ class PosController extends Controller
                     Balance::create([
                         'source_type' => 'customer',
                         'source_id' => $pos->customer_id,
-                        'balance' => $pos->total_amount - $request->paid_amount,
+                        'balance' => $pos->total_amount - $actualPaidAmount,
                         'description' => 'POS Sale',
                         'reference' => $pos->sale_number,
                     ]);
@@ -463,7 +472,7 @@ class PosController extends Controller
                 'customer_id' => $pos->customer_id,
                 'branch_id' => $pos->branch_id,
                 'voucher_amount' => $pos->total_amount,
-                'paid_amount' => $request->paid_amount,
+                'paid_amount' => $actualPaidAmount,
                 'reference' => $pos->sale_number,
                 'created_by' => auth()->id(),
                 'updated_by' => auth()->id(),
@@ -531,7 +540,7 @@ class PosController extends Controller
 
             // DEBIT Cash/Bank (Paid Amount excluding delivery charge - Asset increases)
             $deliveryCharge = floatval($pos->delivery ?? 0);
-            $accountPaidAmount = max(0, $request->paid_amount - $deliveryCharge);
+            $accountPaidAmount = max(0, $actualPaidAmount - $deliveryCharge);
 
             if ($accountPaidAmount > 0) {
                 $financialAccount = null;
@@ -1387,10 +1396,17 @@ class PosController extends Controller
             $pos->customer_id = $request->customer_id;
             $pos->branch_id = $request->branch_id;
             $pos->sale_date = $request->filled('sale_date') ? $request->sale_date : now(config('app.timezone', 'Asia/Dhaka'))->toDateString();
+            $rawTendered = floatval($request->paid_amount ?? 0);
+            $totalPayable = floatval($request->total_amount ?? 0);
+            $actualPaidAmount = min($rawTendered, $totalPayable);
+            $changeGiven = max(0, $rawTendered - $totalPayable);
+
             $pos->sub_total = $request->sub_total;
             $pos->discount = $request->discount ?? 0;
             $pos->delivery = $request->delivery ?? 0;
             $pos->total_amount = $request->total_amount;
+            $pos->tendered_amount = $rawTendered;
+            $pos->change_amount = $changeGiven;
             $pos->estimated_delivery_date = $request->estimated_delivery_date;
             $pos->estimated_delivery_time = $request->estimated_delivery_time;
             $pos->notes = $request->notes;
@@ -1447,7 +1463,7 @@ class PosController extends Controller
                 $invoice = $pos->invoice; // assign the related invoice model
                 $tax = $pos->vat_amount;
 
-                $newPaidAmount = floatval($request->paid_amount ?? 0);
+                $newPaidAmount = $actualPaidAmount;
 
                 // Identify target financial account
                 $targetAccountId = $request->account_id;

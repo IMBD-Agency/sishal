@@ -19,6 +19,8 @@ class Pos extends Model
         'discount',
         'delivery',
         'total_amount',
+        'tendered_amount',
+        'change_amount',
         'estimated_delivery_date',
         'estimated_delivery_time',
         'status',
