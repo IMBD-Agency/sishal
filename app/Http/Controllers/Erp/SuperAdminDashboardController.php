@@ -19,7 +19,7 @@ class SuperAdminDashboardController extends Controller
         }
     }
 
-    const CACHE_VERSION = 'v39';
+    const CACHE_VERSION = 'v41';
 
     public static function clearCache()
     {
@@ -29,6 +29,8 @@ class SuperAdminDashboardController extends Controller
         foreach ($branches as $bId) {
             foreach ($ranges as $r) {
                 Cache::forget("super_admin_dash_" . self::CACHE_VERSION . "_{$bId}_{$r}");
+                Cache::forget("super_admin_dash_v40_{$bId}_{$r}");
+                Cache::forget("super_admin_dash_v39_{$bId}_{$r}");
                 Cache::forget("super_admin_dash_v37_{$bId}_{$r}");
                 Cache::forget("super_admin_dash_v36_{$bId}_{$r}");
                 Cache::forget("super_admin_dash_v35_{$bId}_{$r}");
@@ -898,6 +900,7 @@ class SuperAdminDashboardController extends Controller
                 'months' => $monthValues,
                 'year_total' => $yearTotal,
                 'total_value' => $cashVal,
+                'total_cost' => $branchCogs,
                 'total_profit' => $totalProfit,
                 'profit_pct' => $profitPct,
                 'markup_pct' => $markupPct
@@ -920,6 +923,7 @@ class SuperAdminDashboardController extends Controller
                 'months' => $monthGrandTotals,
                 'year_total' => $totalYearGrandTotal,
                 'total_value' => $totalGrandValue,
+                'total_cost' => $totalGrandCogs,
                 'total_profit' => $totalGrandProfit,
                 'profit_pct' => $totalGrandProfitPct,
                 'markup_pct' => $totalGrandMarkupPct
@@ -1179,6 +1183,7 @@ class SuperAdminDashboardController extends Controller
         $otherIncomes = [];
         $netProfits = [];
         $netProfitPcts = [];
+        $netMarkupPcts = [];
 
         foreach ($months as $mMeta) {
             $ymKey = $mMeta['ym_code'];
@@ -1210,6 +1215,7 @@ class SuperAdminDashboardController extends Controller
             // Net Profit
             $np = ($gp + $otherInc) - $exp;
             $npPct = $cashAmt > 0 ? round(($np / $cashAmt) * 100, 2) : 0;
+            $npMarkupPct = $netCogs > 0 ? round(($np / $netCogs) * 100, 2) : 0;
 
             $salesQtys[] = $netQty;
             $salesAmounts[] = $cashAmt;
@@ -1220,6 +1226,7 @@ class SuperAdminDashboardController extends Controller
             $otherIncomes[] = $otherInc;
             $netProfits[] = $np;
             $netProfitPcts[] = $npPct;
+            $netMarkupPcts[] = $npMarkupPct;
         }
 
         $totalQty = array_sum($salesQtys);
@@ -1231,6 +1238,7 @@ class SuperAdminDashboardController extends Controller
         $totalOtherIncome = array_sum($otherIncomes);
         $totalNetProfit = ($totalGrossProfit + $totalOtherIncome) - $totalExpense;
         $totalNetProfitPct = $totalSalesAmt > 0 ? round(($totalNetProfit / $totalSalesAmt) * 100, 2) : 0;
+        $totalNetMarkupPct = $totalCogsAmt > 0 ? round(($totalNetProfit / $totalCogsAmt) * 100, 2) : 0;
 
         $rows = [
             'month_sales_qty' => [
@@ -1281,9 +1289,15 @@ class SuperAdminDashboardController extends Controller
             'format' => 'currency_net'
         ];
         $rows['net_profit_pct'] = [
-            'label' => 'Net Profit %',
+            'label' => 'Net Profit % (Margin)',
             'values' => $netProfitPcts,
             'year_total' => $totalNetProfitPct,
+            'format' => 'percent'
+        ];
+        $rows['net_markup_pct'] = [
+            'label' => 'Net Markup % (On Cost)',
+            'values' => $netMarkupPcts,
+            'year_total' => $totalNetMarkupPct,
             'format' => 'percent'
         ];
 

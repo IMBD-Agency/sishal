@@ -117,8 +117,8 @@
                                         </select>
                                     </div>
                                     <div class="col-6">
-                                        <label class="form-label-premium">Bank</label>
-                                        <select name="account_id" class="form-select">
+                                        <label class="form-label-premium">Account</label>
+                                        <select name="account_id" id="accountSelect" class="form-select">
                                             @foreach($bankAccounts as $acc)
                                                 <option value="{{ $acc->id }}">{{ $acc->provider_name }}</option>
                                             @endforeach
@@ -227,6 +227,11 @@ $(document).ready(function() {
     const canEditItemPrice = {{ auth()->user()->can('edit item price') ? 'true' : 'false' }};
     let cartItems = [];
     
+    $('#accountSelect').select2({
+        theme: 'bootstrap-5',
+        width: '100%'
+    });
+
     $('#customerSelect').select2({ 
         theme: 'bootstrap-5', 
         width: '100%',

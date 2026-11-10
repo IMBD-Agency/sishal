@@ -301,6 +301,7 @@
             });
             mHead += '<th class="text-end">Year Qty</th>';
             mHead += '<th class="text-end">Total Value</th>';
+            mHead += '<th class="text-end">Total Cost</th>';
             mHead += '<th class="text-end">Total Profit</th>';
             mHead += '<th class="text-end">Profit %</th>';
             mHead += '<th class="text-end">Markup %</th>';
@@ -315,6 +316,7 @@
                 const pctClass = r.profit_pct >= 25 ? 'bg-success-subtle text-success border border-success-subtle' : (r.profit_pct >= 10 ? 'bg-warning-subtle text-warning-emphasis border border-warning-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle');
                 mBody += `<td class="text-end fw-bold text-dark">${formatNumber(r.year_total)} pcs</td>`;
                 mBody += `<td class="text-end fw-bold text-primary">৳${formatCurrency(r.total_value)}</td>`;
+                mBody += `<td class="text-end fw-bold text-secondary">৳${formatCurrency(r.total_cost ?? 0)}</td>`;
                 mBody += `<td class="text-end fw-bold text-success">৳${formatCurrency(r.total_profit)}</td>`;
                 const markupClass = (r.markup_pct ?? 0) >= 30 ? 'bg-primary-subtle text-primary border border-primary-subtle' : ((r.markup_pct ?? 0) >= 15 ? 'bg-info-subtle text-info-emphasis border border-info-subtle' : 'bg-secondary-subtle text-secondary border border-secondary-subtle');
                 mBody += `<td class="text-end fw-bold"><span class="badge ${pctClass} px-2 py-1">${r.profit_pct}%</span></td>`;
@@ -328,6 +330,7 @@
             });
             mFoot += `<td class="text-end text-dark fw-bold">${formatNumber(data.branchSalesStatement.totals.year_total)} pcs</td>`;
             mFoot += `<td class="text-end text-primary fw-bold fs-6">৳${formatCurrency(data.branchSalesStatement.totals.total_value)}</td>`;
+            mFoot += `<td class="text-end text-secondary fw-bold fs-6">৳${formatCurrency(data.branchSalesStatement.totals.total_cost ?? 0)}</td>`;
             mFoot += `<td class="text-end text-success fw-bold fs-6">৳${formatCurrency(data.branchSalesStatement.totals.total_profit)}</td>`;
             mFoot += `<td class="text-end fw-bold fs-6"><span class="badge bg-primary px-2 py-1">${data.branchSalesStatement.totals.profit_pct}%</span></td>`;
             mFoot += `<td class="text-end fw-bold fs-6"><span class="badge bg-dark text-white px-2 py-1">${data.branchSalesStatement.totals.markup_pct ?? 0}%</span></td></tr>`;
@@ -347,12 +350,14 @@
             Object.keys(data.grossSalesStatement.rows).forEach(key => {
                 const row = data.grossSalesStatement.rows[key];
                 const trClass = key === 'net_profit' ? 'table-light fw-bold' : (key === 'gross_profit' ? 'bg-light-subtle' : '');
-                const tdClass = key === 'net_profit' ? 'text-success' : (key === 'gross_profit' ? 'text-primary' : (key === 'operating_expenses' ? 'text-danger' : (key === 'other_income' ? 'text-info' : 'text-dark')));
+                const tdClass = key === 'net_profit' ? 'text-success' : (key === 'gross_profit' ? 'text-primary' : (key === 'operating_expenses' ? 'text-danger' : (key === 'other_income' ? 'text-info' : (key === 'net_markup_pct' ? 'text-primary' : 'text-dark'))));
                 let iconPrefix = '';
                 if (key === 'operating_expenses') iconPrefix = '<i class="fas fa-wallet text-danger me-1 opacity-75"></i>';
                 else if (key === 'net_profit') iconPrefix = '<i class="fas fa-trophy text-success me-1"></i>';
                 else if (key === 'gross_profit') iconPrefix = '<i class="fas fa-coins text-primary me-1"></i>';
                 else if (key === 'other_income') iconPrefix = '<i class="fas fa-hand-holding-usd text-info me-1"></i>';
+                else if (key === 'net_markup_pct') iconPrefix = '<i class="fas fa-percentage text-primary me-1"></i>';
+                else if (key === 'net_profit_pct') iconPrefix = '<i class="fas fa-chart-pie text-success me-1"></i>';
 
                 gBody += `<tr class="${trClass}"><td class="fw-bold ${tdClass}">${iconPrefix}${row.label}</td>`;
 

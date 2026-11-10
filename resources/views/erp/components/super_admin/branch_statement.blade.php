@@ -37,6 +37,7 @@
                     @endif
                     <th class="text-end">Year Qty</th>
                     <th class="text-end">Total Value</th>
+                    <th class="text-end">Total Cost</th>
                     <th class="text-end">Total Profit</th>
                     <th class="text-end">Profit %</th>
                     <th class="text-end">Markup %</th>
@@ -51,6 +52,7 @@
                     @endforeach
                     <td class="text-end fw-bold text-dark">{{ number_format($row['year_total']) }} pcs</td>
                     <td class="text-end fw-bold text-primary">৳{{ number_format($row['total_value'], 2) }}</td>
+                    <td class="text-end fw-bold text-secondary">৳{{ number_format($row['total_cost'] ?? 0, 2) }}</td>
                     <td class="text-end fw-bold text-success">৳{{ number_format($row['total_profit'], 2) }}</td>
                     <td class="text-end fw-bold">
                         <span class="badge @if($row['profit_pct'] >= 25) bg-success-subtle text-success border border-success-subtle @elseif($row['profit_pct'] >= 10) bg-warning-subtle text-warning-emphasis border border-warning-subtle @else bg-danger-subtle text-danger border border-danger-subtle @endif px-2 py-1">
@@ -73,6 +75,7 @@
                     <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 65px;"></div></td>
                     <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 80px;"></div></td>
                     <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 80px;"></div></td>
+                    <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 80px;"></div></td>
                     <td class="text-end"><div class="sa-skeleton sa-skeleton-pill ms-auto"></div></td>
                     <td class="text-end"><div class="sa-skeleton sa-skeleton-pill ms-auto"></div></td>
                 </tr>
@@ -88,6 +91,7 @@
                     @endforeach
                     <td class="text-end text-dark fw-bold">{{ number_format($branchSalesStatement['totals']['year_total']) }} pcs</td>
                     <td class="text-end text-primary fw-bold fs-6">৳{{ number_format($branchSalesStatement['totals']['total_value'], 2) }}</td>
+                    <td class="text-end text-secondary fw-bold fs-6">৳{{ number_format($branchSalesStatement['totals']['total_cost'] ?? 0, 2) }}</td>
                     <td class="text-end text-success fw-bold fs-6">৳{{ number_format($branchSalesStatement['totals']['total_profit'], 2) }}</td>
                     <td class="text-end fw-bold fs-6">
                         <span class="badge bg-primary px-2 py-1">
@@ -107,6 +111,7 @@
                     <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 50px;"></div></td>
                     @endfor
                     <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 65px;"></div></td>
+                    <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 80px;"></div></td>
                     <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 80px;"></div></td>
                     <td class="text-end"><div class="sa-skeleton sa-skeleton-text ms-auto" style="width: 80px;"></div></td>
                     <td class="text-end"><div class="sa-skeleton sa-skeleton-pill ms-auto"></div></td>

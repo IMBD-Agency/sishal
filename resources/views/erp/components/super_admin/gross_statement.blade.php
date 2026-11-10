@@ -31,7 +31,7 @@
             <tbody id="grossStatementBody">
                 @forelse($grossSalesStatement['rows'] ?? [] as $key => $row)
                 <tr class="{{ $key === 'net_profit' ? 'table-light fw-bold' : ($key === 'gross_profit' ? 'bg-light-subtle' : '') }}">
-                    <td class="fw-bold {{ $key === 'net_profit' ? 'text-success' : ($key === 'gross_profit' ? 'text-primary' : ($key === 'operating_expenses' ? 'text-danger' : ($key === 'other_income' ? 'text-info' : 'text-dark'))) }}">
+                    <td class="fw-bold {{ $key === 'net_profit' ? 'text-success' : ($key === 'gross_profit' ? 'text-primary' : ($key === 'operating_expenses' ? 'text-danger' : ($key === 'other_income' ? 'text-info' : ($key === 'net_markup_pct' ? 'text-primary' : 'text-dark')))) }}">
                         @if($key === 'operating_expenses')
                             <i class="fas fa-wallet text-danger me-1 opacity-75"></i>
                         @elseif($key === 'net_profit')
@@ -40,6 +40,10 @@
                             <i class="fas fa-coins text-primary me-1"></i>
                         @elseif($key === 'other_income')
                             <i class="fas fa-hand-holding-usd text-info me-1"></i>
+                        @elseif($key === 'net_markup_pct')
+                            <i class="fas fa-percentage text-primary me-1"></i>
+                        @elseif($key === 'net_profit_pct')
+                            <i class="fas fa-chart-pie text-success me-1"></i>
                         @endif
                         {{ $row['label'] }}
                     </td>
